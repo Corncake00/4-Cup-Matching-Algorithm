@@ -1,7 +1,11 @@
 import streamlit as st
 import random
+from streamlit_gsheets import GSheetsConnection
+import pandas as pd
+
 
 # Setup page config
+conn = st.connection("gsheets", type=GSheetsConnection)
 st.set_page_config(page_title="Sequence Matcher", page_icon="🧩")
 
 # --- INITIALIZE GAME STATE ---
@@ -63,13 +67,27 @@ if not st.session_state.game_over:
                 st.success(f"Perfect! You solved it in {st.session_state.attempts} attempts.")
 
 #Data recording
-if st.session_state.history:
-    st.divider()
-    st.subheader("Guess History")
-    st.table(st.session_state.history)
-
 if st.session_state.game_over:
-    if st.button("Play Again", type="primary"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
+    # Keep your current display code
+    st.write(f"Total attempts: {st.session_state.attempts}")
+    
+    # ADD THIS: Prepare the data row
+    new_entry = pd.DataFrame([{
+        "User": "Anonymous", # You could add an input for their name
+        "Attempts": st.session_state.attempts,
+        "Timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    }])
+
+    # ADD THIS: Push to Google Sheets
+    # Note: 'worksheet' is the name of the tab in your Sheet
+    conn.create(data=new_entry) 
+    st.success("Data recorded")
+
+if st.button("Play Again", type="primary"):
+    # Reset only the game-specific variables
+    st.session_state.attempts = 0
+    st.session_state.game_over = False
+    st.session_state.ball_pos = random.randint(1, 4)
+    st.session_state.history = [] # Clear the table for the next round
+    st.rerun()
+
